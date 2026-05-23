@@ -4,6 +4,12 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+import java.sql.*;
+import java.time.Instant;
+import java.util.UUID;
+
 
 public class DbManager {
     private static final String DB_URL = "jdbc:sqlite:delta_memory.db";
@@ -101,5 +107,46 @@ public class DbManager {
             System.err.println("Memory Search Error: " + e.getMessage());
         }
         return memories;
+    }
+
+
+// ...既存のコード...
+
+    /**
+     * データベースから過去の全トランザクションを時系列順でロードする。
+     * TF-IDF空間の構築および短期記憶のスライディングウィンドウ初期化に使用される。
+     */
+    public List<StateTransaction> loadAllTransactions() {
+        List<StateTransaction> history = new ArrayList<>();
+        // トランザクションを古い順（追記順）に取得し、意識の時系列を正確に再現する
+        String sql = "SELECT transaction_id, timestamp, previous_transaction_id, external_delta, internal_state, output_delta FROM state_transactions ORDER BY timestamp ASC";
+
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                // 初回起動時（Genesis Block）は previous_transaction_id が null になるため安全にハンドリング
+                String prevIdStr = rs.getString("previous_transaction_id");
+                UUID prevId = (prevIdStr != null && !prevIdStr.trim().isEmpty() && !prevIdStr.equalsIgnoreCase("null"))
+                        ? UUID.fromString(prevIdStr)
+                        : null;
+
+                StateTransaction tx = new StateTransaction(
+                        UUID.fromString(rs.getString("transaction_id")),
+                        Instant.parse(rs.getString("timestamp")),
+                        prevId,
+                        rs.getString("external_delta"),
+                        rs.getString("internal_state"),
+                        rs.getString("output_delta")
+                );
+                history.add(tx);
+            }
+        } catch (SQLException | IllegalArgumentException | java.time.format.DateTimeParseException e) {
+            System.err.println("[DB Error] 全トランザクションのロード・型パースに失敗しました: " + e.getMessage());
+            // ロード失敗時は空のリストを返し、システムダウンを防ぐ
+        }
+
+        return history;
     }
 }
