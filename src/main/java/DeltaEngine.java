@@ -87,18 +87,35 @@ public class DeltaEngine {
                 }
             }
 
-            // --- 差異計算フェーズ ---
+            // --- (前略: ノイズの監視フェーズ・記憶の想起フェーズ) ---
+
+            // --- 差異計算フェーズ（Java物理レイヤー） ---
             clockTick++;
             System.out.println("\n========================================");
+
+            // 【追加】物理的な差分抽出とクオリア（摩擦）の計算
+            DifferenceExtractor extractor = new DifferenceExtractor();
+            DifferenceExtractor.DiffResult diffResult = extractor.extract(currentState.internalState(), incomingNoise);
+
+            System.out.printf("  [PHYSICAL DIFF] %s%n", diffResult.structuredDiff().replace("\n", " / "));
+            System.out.printf("  [QUALIA WEIGHT] %.2f%n", diffResult.qualiaWeight());
 
             // API呼び出し時刻を更新
             lastApiCallTime = System.currentTimeMillis();
 
+            // LLMへの入力を、生データだけでなく「物理的に計算された差異とクオリア」を付与して強化する
+            String augmentedNoise = String.format(
+                    "生データ: %s\n物理的差分サマリ: %s\n発生したクオリア(処理負荷の重さ): %.2f",
+                    incomingNoise,
+                    diffResult.structuredDiff(),
+                    diffResult.qualiaWeight()
+            );
+
             // LlmClientに差異計算を投げて、次のステートと出力を受け取る
             LlmClient.LlmResponse response = llmClient.computeSyncState(
                     currentState.internalState(),
-                    incomingNoise,
-                    memoryContext // 想起した記憶を追加
+                    augmentedNoise, // 強化されたノイズを渡す
+                    memoryContext
             );
 
             // 受け取った結果を使って、システムステートを上書き（時間を進める）
