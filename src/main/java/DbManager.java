@@ -69,4 +69,37 @@ public class DbManager {
         }
         return null;
     }
+
+    public java.util.List<StateTransaction> searchMemories(String keyword, int limit) {
+        java.util.List<StateTransaction> memories = new java.util.ArrayList<>();
+        if (keyword == null || keyword.trim().isEmpty()) return memories;
+
+        // 外部入力または内部ステートにキーワードが含まれる過去の記憶を抽出
+        String sql = "SELECT * FROM state_transactions WHERE external_delta LIKE ? OR internal_state LIKE ? ORDER BY id DESC LIMIT ?";
+
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            String searchPattern = "%" + keyword + "%";
+            pstmt.setString(1, searchPattern);
+            pstmt.setString(2, searchPattern);
+            pstmt.setInt(3, limit);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    memories.add(new StateTransaction(
+                            java.util.UUID.fromString(rs.getString("transaction_id")),
+                            java.time.Instant.parse(rs.getString("timestamp")),
+                            rs.getString("previous_transaction_id") == null ? null : java.util.UUID.fromString(rs.getString("previous_transaction_id")),
+                            rs.getString("external_delta"),
+                            rs.getString("internal_state"),
+                            rs.getString("output_delta")
+                    ));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Memory Search Error: " + e.getMessage());
+        }
+        return memories;
+    }
 }
