@@ -149,8 +149,7 @@ public class DeltaEngine {
       mergedMemoriesMap.putIfAbsent(m.transactionId(), m);
     }
 
-    List<StateTransaction> longTermMemories = new java.util.ArrayList<>(mergedMemoriesMap.values());
-    return longTermMemories;
+    return new java.util.ArrayList<>(mergedMemoriesMap.values());
   }
 
   private static String buildMemoryContext(
