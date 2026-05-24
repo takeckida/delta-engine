@@ -43,7 +43,7 @@ public class LocalSemanticMemory {
     // 類似度が高い順（降順）にソートして返す
     List<StateTransaction> recalled = new ArrayList<>();
     while (!queue.isEmpty()) {
-      recalled.add(0, queue.poll().tx);
+      recalled.addFirst(queue.poll().tx);
     }
     return recalled;
   }
