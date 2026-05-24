@@ -90,18 +90,7 @@ public class DeltaEngine {
       List<StateTransaction> semanticMemories = semanticMemory.recallEpisodicMemory(incomingNoise, allHistory, 3);
 
       // 3.3 記憶の統合と重複排除 (TransactionIdをキーにしてマージ)
-      java.util.LinkedHashMap<java.util.UUID, StateTransaction> mergedMemoriesMap = new java.util.LinkedHashMap<>();
-
-      // キーワード検索の結果を先に入れる（直接的な合致を優先）
-      for (StateTransaction m : keywordMemories) {
-        mergedMemoriesMap.put(m.transactionId(), m);
-      }
-      // 意味検索の結果を追加（既に同じIDがあれば上書きされない/順序を維持）
-      for (StateTransaction m : semanticMemories) {
-        mergedMemoriesMap.putIfAbsent(m.transactionId(), m);
-      }
-
-      List<StateTransaction> longTermMemories = new java.util.ArrayList<>(mergedMemoriesMap.values());
+      List<StateTransaction> longTermMemories = getStateTransactions(keywordMemories, semanticMemories);
 
       // コンテキストビルダーへ渡す
       String memoryContext = buildMemoryContext(shortTermMemory, longTermMemories);
@@ -146,6 +135,22 @@ public class DeltaEngine {
           currentState.internalState(),
           currentState.outputDelta());
     }
+  }
+
+  private static List<StateTransaction> getStateTransactions(List<StateTransaction> keywordMemories, List<StateTransaction> semanticMemories) {
+    java.util.LinkedHashMap<java.util.UUID, StateTransaction> mergedMemoriesMap = new java.util.LinkedHashMap<>();
+
+    // キーワード検索の結果を先に入れる（直接的な合致を優先）
+    for (StateTransaction m : keywordMemories) {
+      mergedMemoriesMap.put(m.transactionId(), m);
+    }
+    // 意味検索の結果を追加（既に同じIDがあれば上書きされない/順序を維持）
+    for (StateTransaction m : semanticMemories) {
+      mergedMemoriesMap.putIfAbsent(m.transactionId(), m);
+    }
+
+    List<StateTransaction> longTermMemories = new java.util.ArrayList<>(mergedMemoriesMap.values());
+    return longTermMemories;
   }
 
   private static String buildMemoryContext(
