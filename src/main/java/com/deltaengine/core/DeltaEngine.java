@@ -59,7 +59,6 @@ public class DeltaEngine {
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastApiCallTime >= MINIMUM_INTERVAL_MS) {
           incomingNoise = "ENVIRONMENT_NOISE: " + collectEnvironmentNoise();
-          ;
           consecutiveIdleTicks++;
         }
       }
@@ -186,7 +185,7 @@ public class DeltaEngine {
     // 内容: '...' または "..." （閉じクォートは同じ種類であることを要求）
     Pattern pattern =
         Pattern.compile(
-            "\\[CMD:\\s*WRITE_FILE\\(\\s*(?:'([^']*)'|\"([^\"]*)\"|([^,\\s)]+))\\s*,\\s*(['\"])(.*?)\\4\\s*\\)\\]",
+            "\\[CMD:\\s*WRITE_FILE\\(\\s*(?:'([^']*)'|\"([^\"]*)\"|([^,\\s)]+))\\s*,\\s*(['\"])(.*?)\\4\\s*\\)",
             Pattern.DOTALL);
     Matcher matcher = pattern.matcher(outputDelta);
 
