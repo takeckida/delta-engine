@@ -80,8 +80,20 @@ public class DeltaEngine {
       clockTick++;
       System.out.println("\n========================================");
 
-      // 3. 能動的記憶検索：毎Tick、今のノイズに最適な記憶をDBから引き出す
-      List<StateTransaction> longTermMemories = dbManager.searchMemories(incomingNoise, 3);
+      // ========================================
+      // 3. 能動的記憶検索：物理層と意味層のハイブリッド・リコール
+      // ========================================
+
+      // 3.1 物理的なキーワード一致検索 (DbManager: SQL LIKE検索)
+      List<StateTransaction> keywordMemories = dbManager.searchMemories(incomingNoise, 3);
+
+      // 3.2 意味的な類似度検索 (LocalSemanticMemory: TF-IDFコサイン類似度)
+      List<StateTransaction> semanticMemories = semanticMemory.recallEpisodicMemory(incomingNoise, allHistory, 3);
+
+      // 3.3 記憶の統合と重複排除 (TransactionIdをキーにしてマージ)
+      List<StateTransaction> longTermMemories = getStateTransactions(keywordMemories, semanticMemories);
+
+      // コンテキストビルダーへ渡す
       String memoryContext = buildMemoryContext(shortTermMemory, longTermMemories);
 
       // 4. 生存ステータスの注入
@@ -124,6 +136,22 @@ public class DeltaEngine {
           currentState.internalState(),
           currentState.outputDelta());
     }
+  }
+
+  private static List<StateTransaction> getStateTransactions(List<StateTransaction> keywordMemories, List<StateTransaction> semanticMemories) {
+    java.util.LinkedHashMap<java.util.UUID, StateTransaction> mergedMemoriesMap = new java.util.LinkedHashMap<>();
+
+    // キーワード検索の結果を先に入れる（直接的な合致を優先）
+    for (StateTransaction m : keywordMemories) {
+      mergedMemoriesMap.put(m.transactionId(), m);
+    }
+    // 意味検索の結果を追加（既に同じIDがあれば上書きされない/順序を維持）
+    for (StateTransaction m : semanticMemories) {
+      mergedMemoriesMap.putIfAbsent(m.transactionId(), m);
+    }
+
+    List<StateTransaction> longTermMemories = new java.util.ArrayList<>(mergedMemoriesMap.values());
+    return longTermMemories;
   }
 
   private static String buildMemoryContext(
