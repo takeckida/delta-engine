@@ -20,7 +20,7 @@ public class DeltaEngine {
   private static final int MAX_TTL_TICKS = 30; // 生存限界（死の制約）
   private static final long MINIMUM_INTERVAL_MS = 180000;
 
-  public static void main(String[] args) throws InterruptedException, IOException {
+  static void main(String[] args) throws InterruptedException, IOException {
     System.setOut(
         new java.io.PrintStream(System.out, true, java.nio.charset.StandardCharsets.UTF_8));
 
@@ -38,10 +38,8 @@ public class DeltaEngine {
     }
 
     List<StateTransaction> allHistory = dbManager.loadAllTransactions();
-    LinkedList<StateTransaction> shortTermMemory = new LinkedList<>();
-    shortTermMemory.addAll(
-        allHistory.subList(
-            Math.max(0, allHistory.size() - SHORT_TERM_MEMORY_SIZE), allHistory.size()));
+      LinkedList<StateTransaction> shortTermMemory = new LinkedList<>(allHistory.subList(
+              Math.max(0, allHistory.size() - SHORT_TERM_MEMORY_SIZE), allHistory.size()));
 
     java.io.BufferedReader reader =
         new java.io.BufferedReader(
@@ -91,7 +89,18 @@ public class DeltaEngine {
       List<StateTransaction> semanticMemories = semanticMemory.recallEpisodicMemory(incomingNoise, allHistory, 3);
 
       // 3.3 記憶の統合と重複排除 (TransactionIdをキーにしてマージ)
-      List<StateTransaction> longTermMemories = getStateTransactions(keywordMemories, semanticMemories);
+      java.util.LinkedHashMap<java.util.UUID, StateTransaction> mergedMemoriesMap = new java.util.LinkedHashMap<>();
+
+      // キーワード検索の結果を先に入れる（直接的な合致を優先）
+      for (StateTransaction m : keywordMemories) {
+        mergedMemoriesMap.put(m.transactionId(), m);
+      }
+      // 意味検索の結果を追加（既に同じIDがあれば上書きされない/順序を維持）
+      for (StateTransaction m : semanticMemories) {
+        mergedMemoriesMap.putIfAbsent(m.transactionId(), m);
+      }
+
+      List<StateTransaction> longTermMemories = new java.util.ArrayList<>(mergedMemoriesMap.values());
 
       // コンテキストビルダーへ渡す
       String memoryContext = buildMemoryContext(shortTermMemory, longTermMemories);
@@ -136,22 +145,6 @@ public class DeltaEngine {
           currentState.internalState(),
           currentState.outputDelta());
     }
-  }
-
-  private static List<StateTransaction> getStateTransactions(List<StateTransaction> keywordMemories, List<StateTransaction> semanticMemories) {
-    java.util.LinkedHashMap<java.util.UUID, StateTransaction> mergedMemoriesMap = new java.util.LinkedHashMap<>();
-
-    // キーワード検索の結果を先に入れる（直接的な合致を優先）
-    for (StateTransaction m : keywordMemories) {
-      mergedMemoriesMap.put(m.transactionId(), m);
-    }
-    // 意味検索の結果を追加（既に同じIDがあれば上書きされない/順序を維持）
-    for (StateTransaction m : semanticMemories) {
-      mergedMemoriesMap.putIfAbsent(m.transactionId(), m);
-    }
-
-    List<StateTransaction> longTermMemories = new java.util.ArrayList<>(mergedMemoriesMap.values());
-    return longTermMemories;
   }
 
   private static String buildMemoryContext(
