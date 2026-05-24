@@ -15,14 +15,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /** DeltaEngine:TTL(生存制約)と能動的記憶想起を備えた意識モデルの実装 */
-
 public class DeltaEngine {
   private static final int SHORT_TERM_MEMORY_SIZE = 5;
   private static final int MAX_TTL_TICKS = 30; // 生存限界（死の制約）
   private static final long MINIMUM_INTERVAL_MS = 180000;
 
-  @SuppressWarnings("BusyWait")
-  static void main(@SuppressWarnings("unused")String[] args) throws InterruptedException, IOException {
+  static void main(String[] args)
+      throws InterruptedException, IOException {
     System.setOut(
         new java.io.PrintStream(System.out, true, java.nio.charset.StandardCharsets.UTF_8));
 
@@ -40,8 +39,10 @@ public class DeltaEngine {
     }
 
     List<StateTransaction> allHistory = dbManager.loadAllTransactions();
-      LinkedList<StateTransaction> shortTermMemory = new LinkedList<>(allHistory.subList(
-              Math.max(0, allHistory.size() - SHORT_TERM_MEMORY_SIZE), allHistory.size()));
+    LinkedList<StateTransaction> shortTermMemory =
+        new LinkedList<>(
+            allHistory.subList(
+                Math.max(0, allHistory.size() - SHORT_TERM_MEMORY_SIZE), allHistory.size()));
 
     java.io.BufferedReader reader =
         new java.io.BufferedReader(
@@ -87,10 +88,12 @@ public class DeltaEngine {
       List<StateTransaction> keywordMemories = dbManager.searchMemories(incomingNoise, 3);
 
       // 3.2 意味的な類似度検索 (LocalSemanticMemory: TF-IDFコサイン類似度)
-      List<StateTransaction> semanticMemories = semanticMemory.recallEpisodicMemory(incomingNoise, allHistory, 3);
+      List<StateTransaction> semanticMemories =
+          semanticMemory.recallEpisodicMemory(incomingNoise, allHistory, 3);
 
       // 3.3 記憶の統合と重複排除 (TransactionIdをキーにしてマージ)
-      List<StateTransaction> longTermMemories = getStateTransactions(keywordMemories, semanticMemories);
+      List<StateTransaction> longTermMemories =
+          getStateTransactions(keywordMemories, semanticMemories);
 
       // コンテキストビルダーへ渡す
       String memoryContext = buildMemoryContext(shortTermMemory, longTermMemories);
@@ -137,8 +140,10 @@ public class DeltaEngine {
     }
   }
 
-  private static List<StateTransaction> getStateTransactions(List<StateTransaction> keywordMemories, List<StateTransaction> semanticMemories) {
-    java.util.LinkedHashMap<java.util.UUID, StateTransaction> mergedMemoriesMap = new java.util.LinkedHashMap<>();
+  private static List<StateTransaction> getStateTransactions(
+      List<StateTransaction> keywordMemories, List<StateTransaction> semanticMemories) {
+    java.util.LinkedHashMap<java.util.UUID, StateTransaction> mergedMemoriesMap =
+        new java.util.LinkedHashMap<>();
 
     // キーワード検索の結果を先に入れる（直接的な合致を優先）
     for (StateTransaction m : keywordMemories) {
