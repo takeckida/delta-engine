@@ -15,14 +15,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /** DeltaEngine:TTL(生存制約)と能動的記憶想起を備えた意識モデルの実装 */
-@SuppressWarnings("unused")
+
 public class DeltaEngine {
   private static final int SHORT_TERM_MEMORY_SIZE = 5;
   private static final int MAX_TTL_TICKS = 30; // 生存限界（死の制約）
   private static final long MINIMUM_INTERVAL_MS = 180000;
 
   @SuppressWarnings("BusyWait")
-  static void main(String[] args) throws InterruptedException, IOException {
+  static void main(@SuppressWarnings("unused")String[] args) throws InterruptedException, IOException {
     System.setOut(
         new java.io.PrintStream(System.out, true, java.nio.charset.StandardCharsets.UTF_8));
 
