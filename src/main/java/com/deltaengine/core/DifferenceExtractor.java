@@ -1,10 +1,11 @@
+package com.deltaengine.core;
+
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 
 import java.util.Map;
-import java.util.Set;
 
 public class DifferenceExtractor {
     private final Gson gson = new Gson();

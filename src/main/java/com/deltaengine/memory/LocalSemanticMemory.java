@@ -1,3 +1,7 @@
+package com.deltaengine.memory;
+
+import com.deltaengine.core.StateTransaction;
+
 import java.util.*;
 import java.util.stream.Collectors;
 

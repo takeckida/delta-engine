@@ -1,9 +1,12 @@
+package com.deltaengine.core;
+
+import com.deltaengine.llm.LlmClient;
+import com.deltaengine.memory.DbManager;
+import com.deltaengine.memory.LocalSemanticMemory;
+
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.LinkedList;
 import java.util.List;
 import java.io.File;
@@ -142,24 +145,48 @@ public class DeltaEngine {
     }
 
     private static void executePhysicalCommands(String outputDelta) {
-        // 正規表現で [CMD: WRITE_FILE(ファイル名, "内容")] を抽出
-        // シングル・ダブル両対応、カンマ以降をまとめて取得する例
-        Pattern pattern = Pattern.compile("\\[CMD:\\s*WRITE_FILE\\(([^,]+),\\s*['\"](.*)['\"]\\)\\]");
+        // ファイル名: 'name' または "name" または unquoted-name を許可
+        // 内容: '...' または "..." （閉じクォートは同じ種類であることを要求）
+        Pattern pattern = Pattern.compile(
+                "\\[CMD:\\s*WRITE_FILE\\(\\s*(?:'([^']*)'|\"([^\"]*)\"|([^,\\s)]+))\\s*,\\s*(['\"])(.*?)\\4\\s*\\)\\]",
+                Pattern.DOTALL
+        );
         Matcher matcher = pattern.matcher(outputDelta);
 
+        // 出力はプロジェクト内の safe-output ディレクトリに限定する例
+        java.nio.file.Path baseDir = java.nio.file.Paths.get("safe-output").toAbsolutePath();
+        try { java.nio.file.Files.createDirectories(baseDir); } catch (Exception ignored) {}
+
         while (matcher.find()) {
-            String filename = matcher.group(1).trim();
-            String content = matcher.group(2);
+            // group(1): single-quoted filename, group(2): double-quoted filename, group(3): unquoted
+            String filename = matcher.group(1) != null ? matcher.group(1)
+                    : matcher.group(2) != null ? matcher.group(2)
+                      : matcher.group(3);
+            String content = matcher.group(5); // group(4) は content のクォート文字
+
+            if (filename == null || filename.trim().isEmpty()) {
+                System.err.println("  [ACTUATOR: SKIP] 無効なファイル名です。");
+                continue;
+            }
+
+            // サニタイズ: 空白除去、パス正規化、ディレクトリ脱出禁止
+            filename = filename.trim();
+            java.nio.file.Path target = baseDir.resolve(filename).normalize();
+
+            // 絶対パスや親ディレクトリ参照を禁止
+            if (!target.startsWith(baseDir)) {
+                System.err.println("  [ACTUATOR: SKIP] 不正なパス: " + filename);
+                continue;
+            }
 
             try {
-                // ファイルが存在しなければ作成し、存在すれば追記する
-                Files.writeString(
-                        Paths.get(filename),
-                        content + "\n",
-                        StandardOpenOption.CREATE,
-                        StandardOpenOption.APPEND
+                java.nio.file.Files.writeString(
+                        target,
+                        content + System.lineSeparator(),
+                        java.nio.file.StandardOpenOption.CREATE,
+                        java.nio.file.StandardOpenOption.APPEND
                 );
-                System.out.println("  [ACTUATOR: EXECUTED] 物理空間へ痕跡を出力しました: " + filename);
+                System.out.println("  [ACTUATOR: EXECUTED] 物理空間へ痕跡を出力しました: " + target);
             } catch (Exception e) {
                 System.err.println("  [ACTUATOR: FAILED] 物理干渉に失敗: " + e.getMessage());
             }
